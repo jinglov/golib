@@ -1,8 +1,8 @@
-package runservice
+package cmdservice
 
 import "sync"
 
-type runHandler struct {
+type cmdHandler struct {
 	id      uint8
 	name    string
 	handler handlerFun
@@ -11,7 +11,7 @@ type runHandler struct {
 var initMu sync.Mutex
 
 type handlerFun func(params []byte) []byte
-type serverHandler map[uint8]*runHandler
+type serverHandler map[uint8]*cmdHandler
 
 func defaultServerHandler() serverHandler {
 	res := make(serverHandler)
@@ -22,7 +22,7 @@ func defaultServerHandler() serverHandler {
 func (h serverHandler) Add(id uint8, name string, handler handlerFun) {
 	initMu.Lock()
 	defer initMu.Unlock()
-	r := &runHandler{
+	r := &cmdHandler{
 		id:      id,
 		name:    name,
 		handler: handler,
@@ -31,8 +31,7 @@ func (h serverHandler) Add(id uint8, name string, handler handlerFun) {
 }
 
 func ping(params []byte) []byte {
-	return []byte("ok....")
-	//return make([]byte, 0), nil
+	return []byte("pong")
 }
 
 type clientHandler map[string]uint8

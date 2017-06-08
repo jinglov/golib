@@ -1,4 +1,4 @@
-package runservice
+package cmdservice
 
 import "testing"
 
