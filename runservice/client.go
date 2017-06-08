@@ -17,7 +17,6 @@ type runClient struct {
 	addr    string
 	conn    net.Conn
 	log     *log.Logger
-	isClose bool
 	isOpen  bool
 	handler clientHandler
 }
@@ -37,10 +36,11 @@ func NewClient(lnet, addr string) {
 		log.Println(err)
 		return
 	}
+	client.isOpen = true
 }
 
 func ClientHandler(id uint8, name string) error {
-	if client == nil {
+	if client == nil || !client.isOpen {
 		return errors.New("init client first.")
 	}
 	client.handler.Add(id, name)
@@ -48,6 +48,9 @@ func ClientHandler(id uint8, name string) error {
 }
 
 func Send(name string, param []byte) ([]byte, error) {
+	if client == nil || !client.isOpen {
+		return nil, errors.New("init client first.")
+	}
 	if cmd, ok := client.handler[name]; ok {
 		return client.send(cmd, param)
 	}
@@ -55,11 +58,16 @@ func Send(name string, param []byte) ([]byte, error) {
 }
 
 func Close() {
-	client.close()
+	if client != nil {
+		client.close()
+	}
 }
 
 func (c *runClient) close() {
-	c.conn.Close()
+	if c.conn != nil {
+		c.conn.Close()
+	}
+	c.isOpen = false
 }
 
 func (c *runClient) send(cmd uint8, param []byte) ([]byte, error) {
