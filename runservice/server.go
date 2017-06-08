@@ -3,6 +3,7 @@ package runservice
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 	"net"
@@ -19,48 +20,32 @@ type runService struct {
 	log     *log.Logger
 	isClose bool
 	isOpen  bool
+	handler serverHandler
 }
 
 var runner *runService
 
 func NewService(lnet, addr string) {
 	runner = &runService{
-		net:  lnet,
-		addr: addr,
-		log:  log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile),
+		net:     lnet,
+		addr:    addr,
+		log:     log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile),
+		handler: defaultServerHandler(),
 	}
-	defaultHandler()
+}
+
+func ServerHandler(id uint8, name string, handler handlerFun) error {
+	if runner == nil {
+		return errors.New("init service first.")
+	}
+	runner.handler.Add(id, name, handler)
+	return nil
 }
 
 func Start() {
 	if runner != nil && !runner.isClose {
-		runner.start()
+		go runner.start()
 	}
-}
-
-func (r *runService) start() {
-	go func(lnet, addr string) {
-		var err error
-		r.log.Println("Service start at ", r.net, r.addr)
-		r.clean()
-		r.lis, err = net.Listen(lnet, addr)
-		if err != nil {
-			r.log.Println("Service start error:", err)
-			return
-		}
-		runner.isOpen = true
-		defer func() {
-			runner.isOpen = false
-			runner.isClose = false
-		}()
-		defer r.close()
-		for {
-			if conn, err := r.lis.Accept(); err == nil {
-				go AcceptConn(conn)
-			}
-		}
-
-	}(r.net, r.addr)
 }
 
 func (r *runService) clean() {
@@ -86,12 +71,29 @@ func (r *runService) close() (err error) {
 	return
 }
 
-func AcceptConn(conn net.Conn) {
-	rc := newRunConn(conn)
-	rc.run()
+func (r *runService) start() {
+	var err error
+	r.log.Println("Service start at ", r.net, r.addr)
+	r.clean()
+	r.lis, err = net.Listen(r.net, r.addr)
+	if err != nil {
+		r.log.Println("Service start error:", err)
+		return
+	}
+	runner.isOpen = true
+	defer func() {
+		runner.isOpen = false
+		runner.isClose = false
+	}()
+	defer r.close()
+	for {
+		if conn, err := r.lis.Accept(); err == nil {
+			go newAccpet(conn).run()
+		}
+	}
 }
 
-type runConn struct {
+type accept struct {
 	conn  net.Conn
 	chcmd chan byte
 	chr   chan []byte
@@ -99,8 +101,8 @@ type runConn struct {
 	chend chan struct{}
 }
 
-func newRunConn(conn net.Conn) *runConn {
-	return &runConn{
+func newAccpet(conn net.Conn) *accept {
+	return &accept{
 		conn:  conn,
 		chcmd: make(chan byte),
 		chr:   make(chan []byte),
@@ -109,7 +111,7 @@ func newRunConn(conn net.Conn) *runConn {
 	}
 }
 
-func (c *runConn) receive() {
+func (c *accept) receive() {
 	defer func() {
 		runner.log.Println("close")
 		c.chend <- struct{}{} //断开连接状态
@@ -163,9 +165,8 @@ func (c *runConn) receive() {
 	return
 }
 
-func (c *runConn) send() {
+func (c *accept) send() {
 	defer close(c.chw)
-	defer close(c.chcmd)
 	buf := bytes.NewBuffer(make([]byte, 0))
 	for {
 		select {
@@ -186,10 +187,10 @@ func (c *runConn) send() {
 	}
 }
 
-func (c *runConn) handler() {
+func (c *accept) handler() {
 	defer close(c.chr)
+	defer close(c.chcmd)
 	var response []byte
-	var err error
 	for {
 		select {
 		case cmd := <-c.chcmd:
@@ -201,21 +202,20 @@ func (c *runConn) handler() {
 			/*
 				执行命令
 			*/
-			if handler, ok := idHandlerMap[cmd]; ok {
-				response, err = handler.handler(info)
-				if err != nil {
-					response = []byte(err.Error())
-				}
+			if handler, ok := runner.handler[cmd]; ok {
+				response = handler.handler(info)
 			} else {
 				response = []byte("cmd:" + strconv.Itoa(int(cmd)) + " not support.")
 			}
+			if response == nil {
+				response = make([]byte, 0)
+			}
 			c.chw <- response
-			runner.log.Println("response ok")
 		}
 	}
 }
 
-func (c *runConn) run() {
+func (c *accept) run() {
 	defer close(c.chend)
 	go c.receive()
 	go c.send()
@@ -223,8 +223,8 @@ func (c *runConn) run() {
 	select {
 	case <-c.chend:
 		c.chw <- nil //写空关闭handle 协程
-		c.chcmd <- 0 //命令0
 		c.chr <- nil //读空关闭写协程
+		c.chcmd <- 0 //命令0
 		c.conn.Close()
 		runner.log.Println("close conn")
 		return
