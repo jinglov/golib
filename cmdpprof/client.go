@@ -54,12 +54,37 @@ func cpuClient() {
 	s := inputSecond()
 	fp := inputFile("cpu.pprof")
 	send("cpu", []byte(s), fp)
+	saveOK()
 }
 
 func memClient() {
 	fp := inputFile("mem.pprof")
 	send("mem", make([]byte, 0), fp)
-	fmt.Println("文件保存成功。")
+	saveOK()
+}
+
+func blockClient() {
+	fp := inputFile("block.pprof")
+	send("block", make([]byte, 0), fp)
+	saveOK()
+}
+
+func goroutineClient() {
+	fp := inputFile("goroutine.pprof")
+	send("goroutine", make([]byte, 0), fp)
+	saveOK()
+}
+
+func threadClient() {
+	fp := inputFile("thread.pprof")
+	send("thread", make([]byte, 0), fp)
+	saveOK()
+}
+
+func heapClient() {
+	fp := inputFile("heap.pprof")
+	send("heap", make([]byte, 0), fp)
+	saveOK()
 }
 
 func inputFile(defFile string) io.Writer {
@@ -99,4 +124,8 @@ func send(name string, param []byte, w io.Writer) error {
 	}
 	w.Write(b)
 	return nil
+}
+
+func saveOK() {
+	fmt.Println("文件保存成功。")
 }
