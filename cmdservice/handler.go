@@ -5,12 +5,12 @@ import "sync"
 type cmdHandler struct {
 	id      uint8
 	name    string
-	handler handlerFun
+	handler HandlerFun
 }
 
 var initMu sync.Mutex
 
-type handlerFun func(params []byte) []byte
+type HandlerFun func(params []byte) []byte
 type serverHandler map[uint8]*cmdHandler
 
 func defaultServerHandler() serverHandler {
@@ -19,7 +19,7 @@ func defaultServerHandler() serverHandler {
 	return res
 }
 
-func (h serverHandler) Add(id uint8, name string, handler handlerFun) {
+func (h serverHandler) Add(id uint8, name string, handler HandlerFun) {
 	initMu.Lock()
 	defer initMu.Unlock()
 	r := &cmdHandler{

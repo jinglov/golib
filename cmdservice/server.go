@@ -33,7 +33,7 @@ func NewService(lnet, addr string) {
 	}
 }
 
-func ServerHandler(id uint8, name string, handler handlerFun) error {
+func ServerHandler(id uint8, name string, handler HandlerFun) error {
 	if server == nil {
 		return errors.New("init service first.")
 	}
@@ -41,10 +41,11 @@ func ServerHandler(id uint8, name string, handler handlerFun) error {
 	return nil
 }
 
-func Start() {
+func Start() error {
 	if server != nil && !server.isClose {
-		go server.start()
+		return server.start()
 	}
+	return nil
 }
 
 func (r *cmdServer) clean() {
@@ -70,8 +71,7 @@ func (r *cmdServer) close() (err error) {
 	return
 }
 
-func (r *cmdServer) start() {
-	var err error
+func (r *cmdServer) start() (err error) {
 	//r.log.Println("Service start at ", r.net, r.addr)
 	r.clean()
 	r.lis, err = net.Listen(r.net, r.addr)
@@ -79,17 +79,20 @@ func (r *cmdServer) start() {
 		//r.log.Println("Service start error:", err)
 		return
 	}
-	server.isOpen = true
-	defer func() {
-		server.isOpen = false
-		server.isClose = false
-	}()
-	defer r.close()
-	for {
-		if conn, err := r.lis.Accept(); err == nil {
-			go newAccpet(conn).run()
+	go func() {
+		server.isOpen = true
+		defer func() {
+			server.isOpen = false
+			server.isClose = false
+		}()
+		defer r.close()
+		for {
+			if conn, err := r.lis.Accept(); err == nil {
+				go newAccpet(conn).run()
+			}
 		}
-	}
+	}()
+	return
 }
 
 type accept struct {
