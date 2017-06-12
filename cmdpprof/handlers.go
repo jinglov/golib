@@ -41,7 +41,7 @@ var pprofHandlers = []*pprofHandler{
 	},
 	{
 		id:            14,
-		name:          "thread",
+		name:          "threadcreate",
 		description:   "进程分析",
 		cmdHandler:    threadProfile,
 		clientHandler: threadClient,

@@ -59,7 +59,7 @@ func goroutineProfile(params []byte) []byte {
 func threadProfile(params []byte) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0))
 	log.Println("start thread pprof...")
-	pprof.Lookup("thread").WriteTo(buf, 0)
+	pprof.Lookup("threadcreate").WriteTo(buf, 0)
 	log.Println("end thread pprof...")
 	return buf.Bytes()
 }

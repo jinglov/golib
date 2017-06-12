@@ -77,7 +77,7 @@ func goroutineClient() {
 
 func threadClient() {
 	fp := inputFile("thread.pprof")
-	send("thread", make([]byte, 0), fp)
+	send("threadcreate", make([]byte, 0), fp)
 	saveOK()
 }
 
