@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -71,7 +72,7 @@ func SetRollingFile(fileDir, fileName string, maxNumber int32, maxSize int64, _u
 	maxFileSize = maxSize * int64(_unit)
 	RollingFile = true
 	dailyRolling = false
-	if len(fileDir) > 0 && fileDir[len(fileDir)-1] != '/' {
+	if !strings.HasSuffix(fileDir, "/") {
 		fileDir += "/"
 	}
 	mkdirlog(fileDir)
@@ -98,7 +99,7 @@ func SetRollingDaily(fileDir, fileName string) {
 	RollingFile = false
 	dailyRolling = true
 	t, _ := time.Parse(DATEFORMAT, time.Now().Format(DATEFORMAT))
-	if len(fileDir) > 0 && fileDir[len(fileDir)-1] != '/' {
+	if !strings.HasSuffix(fileDir, "/") {
 		fileDir += "/"
 	}
 	mkdirlog(fileDir)
