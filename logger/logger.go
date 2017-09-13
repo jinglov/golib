@@ -71,19 +71,22 @@ func SetRollingFile(fileDir, fileName string, maxNumber int32, maxSize int64, _u
 	maxFileSize = maxSize * int64(_unit)
 	RollingFile = true
 	dailyRolling = false
+	if len(fileDir) > 0 && fileDir[len(fileDir)-1] != '/' {
+		fileDir += "/"
+	}
 	mkdirlog(fileDir)
 	logObj = &_FILE{dir: fileDir, filename: fileName, isCover: false, mu: new(sync.RWMutex)}
 	logObj.mu.Lock()
 	defer logObj.mu.Unlock()
 	for i := 1; i <= int(maxNumber); i++ {
-		if isExist(fileDir + "/" + fileName + "." + strconv.Itoa(i)) {
+		if isExist(fileDir + fileName + "." + strconv.Itoa(i)) {
 			logObj._suffix = i
 		} else {
 			break
 		}
 	}
 	if !logObj.isMustRename() {
-		logObj.logfile, _ = os.OpenFile(fileDir+"/"+fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0777)
+		logObj.logfile, _ = os.OpenFile(fileDir+fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0777)
 		logObj.lg = log.New(logObj.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
 	} else {
 		logObj.rename()
@@ -95,13 +98,16 @@ func SetRollingDaily(fileDir, fileName string) {
 	RollingFile = false
 	dailyRolling = true
 	t, _ := time.Parse(DATEFORMAT, time.Now().Format(DATEFORMAT))
+	if len(fileDir) > 0 && fileDir[len(fileDir)-1] != '/' {
+		fileDir += "/"
+	}
 	mkdirlog(fileDir)
 	logObj = &_FILE{dir: fileDir, filename: fileName, _date: &t, isCover: false, mu: new(sync.RWMutex)}
 	logObj.mu.Lock()
 	defer logObj.mu.Unlock()
 
 	if !logObj.isMustRename() {
-		logObj.logfile, _ = os.OpenFile(fileDir+"/"+fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0777)
+		logObj.logfile, _ = os.OpenFile(fileDir+fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0777)
 		logObj.lg = log.New(logObj.logfile, "", log.Ldate|log.Ltime|log.Lshortfile)
 	} else {
 		logObj.rename()
@@ -235,7 +241,7 @@ func (f *_FILE) isMustRename() bool {
 		}
 	} else {
 		if maxFileCount > 1 {
-			if fileSize(f.dir+"/"+f.filename) >= maxFileSize {
+			if fileSize(f.dir+f.filename) >= maxFileSize {
 				return true
 			}
 		}
@@ -245,18 +251,18 @@ func (f *_FILE) isMustRename() bool {
 
 func (f *_FILE) rename() {
 	if dailyRolling {
-		fn := f.dir + "/" + f.filename + "." + f._date.Format(DATEFORMAT)
+		fn := f.dir + f.filename + "." + f._date.Format(DATEFORMAT)
 		if !isExist(fn) && f.isMustRename() {
 			if f.logfile != nil {
 				f.logfile.Close()
 			}
-			err := os.Rename(f.dir+"/"+f.filename, fn)
+			err := os.Rename(f.dir+f.filename, fn)
 			if err != nil {
 				f.lg.Println("rename err", err.Error())
 			}
 			t, _ := time.Parse(DATEFORMAT, time.Now().Format(DATEFORMAT))
 			f._date = &t
-			f.logfile, _ = os.Create(f.dir + "/" + f.filename)
+			f.logfile, _ = os.Create(f.dir + f.filename)
 			f.lg = log.New(logObj.logfile, "\n", log.Ldate|log.Ltime|log.Lshortfile)
 		}
 	} else {
@@ -273,11 +279,11 @@ func (f *_FILE) coverNextOne() {
 	if f.logfile != nil {
 		f.logfile.Close()
 	}
-	if isExist(f.dir + "/" + f.filename + "." + strconv.Itoa(int(f._suffix))) {
-		os.Remove(f.dir + "/" + f.filename + "." + strconv.Itoa(int(f._suffix)))
+	if isExist(f.dir + f.filename + "." + strconv.Itoa(int(f._suffix))) {
+		os.Remove(f.dir + f.filename + "." + strconv.Itoa(int(f._suffix)))
 	}
-	os.Rename(f.dir+"/"+f.filename, f.dir+"/"+f.filename+"."+strconv.Itoa(int(f._suffix)))
-	f.logfile, _ = os.Create(f.dir + "/" + f.filename)
+	os.Rename(f.dir+f.filename, f.dir+f.filename+"."+strconv.Itoa(int(f._suffix)))
+	f.logfile, _ = os.Create(f.dir + f.filename)
 	f.lg = log.New(logObj.logfile, "\n", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
