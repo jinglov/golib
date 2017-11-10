@@ -3,25 +3,21 @@ package utils
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"io"
 )
 
-//SHA1  加密
-func Md5String(origin string) string {
-	s := md5.New()
-	io.WriteString(s, origin)
-	return hex.EncodeToString(s.Sum(nil))
-}
+//Md5  加密
 
-func Md5Byte(origin []byte) string {
+func Md5(origin interface{}) (string, error) {
 	s := md5.New()
-	s.Write(origin)
-	return hex.EncodeToString(s.Sum(nil))
-}
-
-func Md516String(origin string) string {
-	s := md5.New()
-	io.WriteString(s, origin)
-	b := s.Sum(nil)
-	return hex.EncodeToString(b[4:12])
+	switch origin.(type) {
+	case string:
+		io.WriteString(s, origin.(string))
+	case []byte:
+		s.Write(origin.([]byte))
+	default:
+		return "", errors.New("not supper this type")
+	}
+	return hex.EncodeToString(s.Sum(nil)), nil
 }

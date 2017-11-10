@@ -51,11 +51,6 @@ func String2Float32(b string) float32 {
 	return float32(f)
 }
 
-func FormatDateTime(rfc3339 string) string {
-	tm, _ := time.Parse(time.RFC3339, rfc3339)
-	return tm.Format(DATETIME_FORMAT)
-}
-
 var DATETEIM = []string{
 	"2006-01-02 15:04:05",
 	"2006-01-02",

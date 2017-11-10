@@ -57,7 +57,7 @@ func doRequest(req *http.Request, proxy *url.URL) (b []byte, err error) {
 		logger.Error(err)
 		return
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode > 299 || resp.StatusCode < 200 {
 		err = errors.New("return Status Code is " + strconv.Itoa(resp.StatusCode))
 	}
 	return

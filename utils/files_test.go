@@ -19,31 +19,6 @@ func TestMd5Sum(t *testing.T) {
 	}
 }
 
-func TestS3Cp(t *testing.T) {
-	params := []struct {
-		from    string
-		to      string
-		profile string
-		region  string
-		hasErr  bool
-	}{
-		{
-			from:   "",
-			to:     "",
-			region: "cn-north-1",
-			hasErr: true,
-		},
-	}
-	for _, param := range params {
-		err := S3Cp(param.from, param.to, param.profile, param.region)
-		if param.hasErr && err == nil || !param.hasErr && err != nil {
-			t.Error("want:", param.hasErr, "res:", err)
-			t.FailNow()
-			return
-		}
-	}
-}
-
 func TestExecCommand(t *testing.T) {
 	params := []struct {
 		cmd    string
