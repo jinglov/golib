@@ -1,17 +1,36 @@
 package main
 
-import "github.com/jinglov/golib/cmdpprof"
+import (
+	"github.com/jinglov/golib/cmdpprof"
+	"flag"
+	"fmt"
+	"os/signal"
+	"os"
+	"syscall"
+)
 
 func main() {
-	//demoServer()
-	demoClient()
+	action := flag.String("action", "client", "-action server[client]")
+	socket := flag.String("socket", "test.sock", "-socket test.sock")
+	flag.Parse()
+	switch *action {
+	case "server":
+		demoServer(*socket)
+	case "client":
+		demoClient(*socket)
+	default:
+		fmt.Println("-action server or -action client")
+	}
 }
 
-func demoServer() {
-	cmdpprof.NewPprofServer("unix", "test.sock")
-	select {}
+func demoServer(socket string) {
+	cmdpprof.NewPprofServer("unix", socket)
+	sign := make(chan os.Signal)
+	signal.Notify(sign, syscall.SIGINT)
+	<-sign
+	os.Exit(0)
 }
 
-func demoClient() {
-	cmdpprof.NewCmdClient("unix", "test.sock")
+func demoClient(socket string) {
+	cmdpprof.NewCmdClient("unix", socket)
 }

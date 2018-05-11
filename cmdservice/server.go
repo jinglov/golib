@@ -9,14 +9,15 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"log"
 )
 
 type cmdServer struct {
-	mu   sync.Mutex
-	net  string
-	addr string
-	lis  net.Listener
-	//log     *log.Logger
+	mu      sync.Mutex
+	net     string
+	addr    string
+	lis     net.Listener
+	log     *log.Logger
 	isClose bool
 	isOpen  bool
 	handler serverHandler
@@ -26,9 +27,8 @@ var server *cmdServer
 
 func NewService(lnet, addr string) {
 	server = &cmdServer{
-		net:  lnet,
-		addr: addr,
-		//log:     log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile),
+		net:     lnet,
+		addr:    addr,
 		handler: defaultServerHandler(),
 	}
 }
@@ -57,26 +57,26 @@ func (r *cmdServer) clean() {
 func (r *cmdServer) close() (err error) {
 	err = r.lis.Close()
 	if err != nil {
-		//r.log.Println("Service stop error ", r.net, r.addr, err.Error())
+		logError("Service stop error ", r.net, r.addr, err.Error())
 		return
 	}
 	if r.net == "unix" {
 		err = os.Remove(r.addr)
 		if err != nil {
-			//r.log.Println("Remove sock file error:", err.Error())
+			logError("Remove sock file error:", err.Error())
 			return
 		}
 	}
-	//r.log.Println("Service stop at ", r.net, r.addr)
+	info("Service stop at ", r.net, r.addr)
 	return
 }
 
 func (r *cmdServer) start() (err error) {
-	//r.log.Println("Service start at ", r.net, r.addr)
+	info("Service start at ", r.net, r.addr)
 	r.clean()
 	r.lis, err = net.Listen(r.net, r.addr)
 	if err != nil {
-		//r.log.Println("Service start error:", err)
+		logError("Service start error:", err)
 		return
 	}
 	go func() {
@@ -88,7 +88,7 @@ func (r *cmdServer) start() (err error) {
 		defer r.close()
 		for {
 			if conn, err := r.lis.Accept(); err == nil {
-				go newAccpet(conn).run()
+				go newAccpet(conn)
 			}
 		}
 	}()
@@ -96,26 +96,27 @@ func (r *cmdServer) start() (err error) {
 }
 
 type accept struct {
-	conn  net.Conn
-	chcmd chan byte
-	chr   chan []byte
-	chw   chan []byte
-	chend chan struct{}
+	conn  net.Conn      //连接
+	chcmd chan byte     //得到命令
+	chr   chan []byte   //读数据缓存
+	chw   chan []byte   //写数据缓存
+	chend chan struct{} //结束标记
 }
 
-func newAccpet(conn net.Conn) *accept {
-	return &accept{
+func newAccpet(conn net.Conn) {
+	ac := &accept{
 		conn:  conn,
 		chcmd: make(chan byte),
 		chr:   make(chan []byte),
 		chw:   make(chan []byte),
 		chend: make(chan struct{}),
 	}
+	ac.run()
 }
 
 func (c *accept) receive() {
 	defer func() {
-		//runner.log.Println("close")
+		info("close")
 		c.chend <- struct{}{} //断开连接状态
 	}()
 	for {
@@ -124,18 +125,18 @@ func (c *accept) receive() {
 		*/
 		header := make([]byte, 3)
 		_, err := c.conn.Read(header)
-		//server.log.Println(header)
+		debug(header)
 		if err != nil && err == io.EOF {
-			//server.log.Println("EOF")
+			debug("EOF")
 			return
 		}
 		//如果有错误，把错误抛出来，并且断开连接
 		if err != nil {
-			//server.log.Println(err)
+			logError(err)
 			return
 		}
 		cmd := header[0]
-		//server.log.Println(cmd)
+		debug(cmd)
 		c.chcmd <- cmd
 		/*
 			读消息长度
@@ -143,7 +144,7 @@ func (c *accept) receive() {
 		var length uint16
 		buf := bytes.NewBuffer(header[1:3])
 		binary.Read(buf, binary.BigEndian, &length)
-		//runner.log.Println(length)
+		debug(length)
 		/*
 			读消息实体
 		*/
@@ -154,12 +155,12 @@ func (c *accept) receive() {
 		_, err = c.conn.Read(info)
 		//如果结束就返回
 		if err != nil && err == io.EOF {
-			//server.log.Println("EOF")
+			debug("EOF")
 			return
 		}
 		//如果有错误，把错误抛出来，并且断开连接
 		if err != nil {
-			//server.log.Println(err)
+			logError(err)
 			return
 		}
 		c.chr <- info
@@ -176,14 +177,14 @@ func (c *accept) send() {
 			if response == nil { //写空结束
 				return
 			}
-			//server.log.Println("response:", response)
+			info("response:", response)
 			resLen := len(response)
 			buf.Reset()
 			buf.Grow(resLen + 1)
 			binary.Write(buf, binary.BigEndian, uint16(resLen)) //写入消息长度
 			buf.Write(response)                                 //写入消息内容
 			if _, cerr := c.conn.Write(buf.Bytes()); cerr != nil {
-				//runner.log.Println(cerr)
+				logError(cerr)
 			}
 		}
 	}
@@ -196,7 +197,7 @@ func (c *accept) handler() {
 	for {
 		select {
 		case cmd := <-c.chcmd:
-			//server.log.Println(cmd)
+			debug(cmd)
 			info := <-c.chr
 			if info == nil { //接收到空
 				return
@@ -228,7 +229,7 @@ func (c *accept) run() {
 		c.chr <- nil //读空关闭写协程
 		c.chcmd <- 0 //命令0
 		c.conn.Close()
-		//server.log.Println("close conn")
+		info("close conn")
 		return
 	}
 }
