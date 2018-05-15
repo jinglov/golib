@@ -26,8 +26,9 @@ func main() {
 func demoServer(socket string) {
 	cmdpprof.NewPprofServer("unix", socket)
 	sign := make(chan os.Signal)
-	signal.Notify(sign, syscall.SIGINT)
+	signal.Notify(sign, syscall.SIGINT, syscall.SIGUSR1, syscall.SIGUSR2)
 	<-sign
+	fmt.Println("exit 0")
 	os.Exit(0)
 }
 

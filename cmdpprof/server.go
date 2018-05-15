@@ -6,6 +6,7 @@ import (
 	"log"
 	"runtime/pprof"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -26,8 +27,18 @@ func cpuProfile(params []byte) []byte {
 		sec = 60
 	}
 	log.Println("sleep: ", sec)
-	time.Sleep(time.Second * time.Duration(sec))
-	pprof.StopCPUProfile()
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func(sec int) {
+		defer wg.Done()
+		tick := time.NewTicker(time.Second * time.Duration(sec))
+		<-tick.C
+		select {
+		case <-tick.C:
+			pprof.StopCPUProfile()
+		}
+	}(sec)
+	wg.Wait()
 	log.Println("stop cpu pprof...")
 	return buf.Bytes()
 }
