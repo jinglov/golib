@@ -177,7 +177,7 @@ func (c *accept) send() {
 			if response == nil { //写空结束
 				return
 			}
-			info("response:", response)
+			//info("response:", response)
 			resLen := len(response)
 			buf.Reset()
 			buf.Grow(resLen + 1)
